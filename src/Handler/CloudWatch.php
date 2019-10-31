@@ -1,5 +1,4 @@
 <?php
-
 namespace Maxbanton\Cwh\Handler;
 
 use Aws\CloudWatchLogs\CloudWatchLogsClient;
@@ -125,7 +124,11 @@ class CloudWatch extends AbstractProcessingHandler
 
         $this->client = $client;
         $this->group = $group;
-        $this->stream = $stream;
+        if ($stream) {
+          $this->stream = $stream;
+        } else {
+          $this->stream = null;
+        }
         $this->retention = $retention;
         $this->batchSize = $batchSize;
         $this->tags = $tags;
@@ -268,12 +271,18 @@ class CloudWatch extends AbstractProcessingHandler
 
             return 0;
         });
-
-        $data = [
+        if($this->stream) {
+          $data = [
             'logGroupName' => $this->group,
             'logStreamName' => $this->stream,
             'logEvents' => $entries
-        ];
+          ];
+        } else {
+          $data = [
+            'logGroupName' => $this->group,
+            'logEvents' => $entries
+          ];
+        }
 
         if (!empty($this->sequenceToken)) {
             $data['sequenceToken'] = $this->sequenceToken;
@@ -332,6 +341,10 @@ class CloudWatch extends AbstractProcessingHandler
 
     private function refreshSequenceToken()
     {
+        if (!$this->stream) {
+          $this->initialized = true;
+          return;
+        }
         // fetch existing streams
         $existingStreams =
             $this
